@@ -21,6 +21,9 @@ export default function RunWorkoutPage() {
       .then(setWorkouts);
   }, []);
 
+  // ----------------------------
+  // SET HANDLERS
+  // ----------------------------
   const addSet = (id: string) => {
     setLogs((p) => ({
       ...p,
@@ -49,6 +52,9 @@ export default function RunWorkoutPage() {
     });
   };
 
+  // ----------------------------
+  // SAVE SESSION
+  // ----------------------------
   const submit = async () => {
     for (const id of Object.keys(logs)) {
       await fetch("/api/logs", {
@@ -64,6 +70,140 @@ export default function RunWorkoutPage() {
 
     setActive(null);
     setLogs({});
+  };
+
+  // ----------------------------
+  // RENDER SECTION
+  // ----------------------------
+  const renderSection = (
+    title: string,
+    blocks: any[]
+  ) => {
+    if (!blocks?.length) return null;
+
+    return (
+      <div>
+        <h3 className="text-lg font-semibold mb-3">
+          {title}
+        </h3>
+
+        <div className="space-y-4">
+          {[...blocks]
+            .sort((a, b) => a.order - b.order)
+            .map((block, idx) => {
+              const e = block.exercise;
+
+              if (!e) return null;
+
+              const history = e.history || [];
+
+              const last =
+                history.length > 0
+                  ? history[
+                      history.length - 1
+                    ].sets.reduce(
+                      (a: any, b: any) =>
+                        b.weight > a.weight
+                          ? b
+                          : a,
+                      { weight: 0, reps: 0 }
+                    )
+                  : null;
+
+              return (
+                <div
+                  key={e._id}
+                  className="bg-zinc-900 rounded-2xl p-4 shadow-md"
+                >
+                  <div className="flex justify-between mb-1">
+                    <h4 className="font-semibold">
+                      {idx + 1}. {e.name}
+                    </h4>
+
+                    <span className="text-xs text-zinc-400">
+                      {e.muscleGroups?.join(", ")}
+                    </span>
+                  </div>
+
+                  {/* PR + LAST */}
+                  <div className="flex gap-4 text-xs mb-3">
+                    <span className="text-orange-400">
+                      PR: {e.pr || 0}
+                      {unit}
+                    </span>
+
+                    {last && (
+                      <span className="text-blue-400">
+                        Last: {last.weight}×
+                        {last.reps}
+                      </span>
+                    )}
+                  </div>
+
+                  {(logs[e._id] || []).map((s, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 mb-2"
+                    >
+                      <span className="text-xs text-zinc-400 w-12">
+                        Set {i + 1}
+                      </span>
+
+                      <input
+                        type="number"
+                        className="flex-1 bg-zinc-800 p-2 rounded-xl text-center"
+                        value={s.weight}
+                        onChange={(x) =>
+                          updateSet(
+                            e._id,
+                            i,
+                            "weight",
+                            +x.target.value
+                          )
+                        }
+                      />
+
+                      <span className="text-sm text-zinc-400">
+                        {unit}
+                      </span>
+
+                      <input
+                        type="number"
+                        className="w-20 bg-zinc-800 p-2 rounded-xl text-center"
+                        value={s.reps}
+                        onChange={(x) =>
+                          updateSet(
+                            e._id,
+                            i,
+                            "reps",
+                            +x.target.value
+                          )
+                        }
+                      />
+
+                      <button
+                        onClick={() =>
+                          removeSet(e._id, i)
+                        }
+                        className="text-red-500 text-lg px-2"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={() => addSet(e._id)}
+                    className="mt-1 text-sm text-green-400"
+                  >
+                    ➕ Add set
+                  </button>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -92,128 +232,52 @@ export default function RunWorkoutPage() {
       {/* PICK WORKOUT */}
       {!active && (
         <div className="space-y-3">
-          {workouts.map((w) => (
-            <button
-              key={w._id}
-              onClick={() => setActive(w)}
-              className="w-full bg-zinc-900 p-5 rounded-2xl shadow-lg text-left"
-            >
-              <p className="font-semibold text-lg">
-                {w.name}
-              </p>
-              <p className="text-xs text-zinc-400">
-                {w.workouts.length} exercises
-              </p>
-            </button>
-          ))}
+          {workouts.map((w) => {
+            const total =
+              (w.warmups?.length || 0) +
+              (w.workouts?.length || 0) +
+              (w.stretches?.length || 0);
+
+            return (
+              <button
+                key={w._id}
+                onClick={() => setActive(w)}
+                className="w-full bg-zinc-900 p-5 rounded-2xl shadow-lg text-left"
+              >
+                <p className="font-semibold text-lg">
+                  {w.name}
+                </p>
+
+                <p className="text-xs text-zinc-400">
+                  {total} total movements
+                </p>
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {/* ACTIVE SESSION */}
+      {/* ACTIVE */}
       {active && (
-        <div className="space-y-6">
+        <div className="space-y-8">
           <h2 className="text-xl font-semibold">
             {active.name}
           </h2>
 
-          {active.workouts.map((e: any, exIdx: number) => {
-            const history = e.history || [];
-            const last =
-              history.length > 0
-                ? history[history.length - 1].sets.reduce(
-                    (a: any, b: any) =>
-                      b.weight > a.weight ? b : a,
-                    { weight: 0, reps: 0 }
-                  )
-                : null;
+          {renderSection(
+            "🔥 Warmups",
+            active.warmups
+          )}
 
-            return (
-              <div
-                key={e._id}
-                className="bg-zinc-900 rounded-2xl p-4 shadow-md"
-              >
-                <div className="flex justify-between mb-1">
-                  <h3 className="font-semibold text-lg">
-                    {exIdx + 1}. {e.name}
-                  </h3>
-                  <span className="text-xs text-zinc-400">
-                    {e.muscleGroup}
-                  </span>
-                </div>
+          {renderSection(
+            "💪 Exercises",
+            active.workouts
+          )}
 
-                {/* PR + LAST */}
-                <div className="flex gap-4 text-xs mb-3">
-                  <span className="text-orange-400">
-                    PR: {e.pr || 0}kg
-                  </span>
-                  {last && (
-                    <span className="text-blue-400">
-                      Last: {last.weight}×{last.reps}
-                    </span>
-                  )}
-                </div>
-
-                {(logs[e._id] || []).map((s, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 mb-2"
-                  >
-                    <span className="text-xs text-zinc-400 w-12">
-                      Set {i + 1}
-                    </span>
-
-                    <input
-                      type="number"
-                      className="flex-1 bg-zinc-800 p-2 rounded-xl text-center"
-                      value={s.weight}
-                      onChange={(x) =>
-                        updateSet(
-                          e._id,
-                          i,
-                          "weight",
-                          +x.target.value
-                        )
-                      }
-                    />
-
-                    <span className="text-sm text-zinc-400">
-                      {unit}
-                    </span>
-
-                    <input
-                      type="number"
-                      className="w-20 bg-zinc-800 p-2 rounded-xl text-center"
-                      value={s.reps}
-                      onChange={(x) =>
-                        updateSet(
-                          e._id,
-                          i,
-                          "reps",
-                          +x.target.value
-                        )
-                      }
-                    />
-
-                    <button
-                      onClick={() =>
-                        removeSet(e._id, i)
-                      }
-                      className="text-red-500 text-lg px-2"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-
-                <button
-                  onClick={() => addSet(e._id)}
-                  className="mt-1 text-sm text-green-400"
-                >
-                  ➕ Add set
-                </button>
-              </div>
-            );
-          })}
+          {renderSection(
+            "🧘 Stretches",
+            active.stretches
+          )}
 
           {/* BOTTOM ACTION BAR */}
           <div className="fixed bottom-16 left-0 right-0 bg-black/90 backdrop-blur p-4 border-t border-zinc-800">

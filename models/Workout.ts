@@ -1,10 +1,47 @@
 import { Schema, model, models } from "mongoose";
 
-const WorkoutSchema = new Schema({
-  name: String,
-  warmups: [{ type: Schema.Types.ObjectId, ref: "Exercise" }],
-  workouts: [{ type: Schema.Types.ObjectId, ref: "Exercise" }],
-  stretches: [{ type: Schema.Types.ObjectId, ref: "Exercise" }],
-});
+/**
+ * Ordered exercise block
+ */
+const OrderedExerciseSchema = new Schema(
+  {
+    exercise: {
+      type: Schema.Types.ObjectId,
+      ref: "Exercise",
+      required: true,
+    },
+    order: {
+      type: Number,
+      required: true,
+    },
+  },
+  { _id: false }
+);
 
-export default models.Workout || model("Workout", WorkoutSchema);
+const WorkoutSchema = new Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+    },
+
+    warmups: {
+      type: [OrderedExerciseSchema],
+      default: [],
+    },
+
+    workouts: {
+      type: [OrderedExerciseSchema],
+      default: [],
+    },
+
+    stretches: {
+      type: [OrderedExerciseSchema],
+      default: [],
+    },
+  },
+  { timestamps: true }
+);
+
+export default models.Workout ||
+  model("Workout", WorkoutSchema);

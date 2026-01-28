@@ -6,7 +6,7 @@ type DayMap = Record<string, number>;
 
 type DayDetail = {
   name: string;
-  muscleGroup: string;
+  muscleGroups: string[];
   sets: { weight: number; reps: number }[];
 };
 
@@ -50,7 +50,7 @@ export default function StreakCalendar() {
   // LOAD SUMMARY MAP
   // ----------------------------
   useEffect(() => {
-    fetch("/api/logs")
+    fetch("/api/logs", { cache: "no-store" })
       .then((r) => r.json())
       .then(setDays);
   }, []);
@@ -60,7 +60,6 @@ export default function StreakCalendar() {
   // ----------------------------
   const daysInMonth = useMemo(() => {
     const first = startOfMonth(year, month);
-    const last = endOfMonth(year, month);
 
     const gridStart = startOfWeek(first);
 
@@ -76,7 +75,7 @@ export default function StreakCalendar() {
   }, [year, month]);
 
   // ----------------------------
-  // STREAK (rolling weekly from current view backwards)
+  // STREAK
   // ----------------------------
   const streak = useMemo(() => {
     const weeks: string[][] = [];
@@ -123,7 +122,19 @@ export default function StreakCalendar() {
       body: JSON.stringify({ date: d }),
     });
 
-    setDetails(await r.json());
+    const data = await r.json();
+
+    setDetails(
+      data.map((x: any) => ({
+        name: x.name,
+        muscleGroups:
+          x.muscleGroups ||
+          (x.muscleGroup
+            ? [x.muscleGroup]
+            : []),
+        sets: x.sets || [],
+      }))
+    );
   };
 
   const prevMonth = () => {
@@ -154,7 +165,7 @@ export default function StreakCalendar() {
   return (
     <>
       {/* CARD */}
-      <div className="bg-zinc-900 p-4 rounded-2xl mb-5">
+      <div className="bg-zinc-900 p-4 rounded-2xl mb-5 max-w-sm mx-auto">
         {/* HEADER */}
         <div className="flex justify-between items-center mb-2">
           <button
@@ -164,7 +175,9 @@ export default function StreakCalendar() {
             ◀
           </button>
 
-          <h2 className="font-semibold">{monthLabel}</h2>
+          <h2 className="font-semibold text-sm">
+            {monthLabel}
+          </h2>
 
           <button
             onClick={nextMonth}
@@ -174,13 +187,13 @@ export default function StreakCalendar() {
           </button>
         </div>
 
-        {/* STREAK + CONTROL */}
-        <div className="flex justify-between items-center mb-3 text-sm">
+        {/* STREAK */}
+        <div className="flex justify-between items-center mb-3 text-xs">
           <span className="text-orange-400 font-bold">
             🔥 {streak} week streak
           </span>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <span>Min/wk</span>
             <input
               type="number"
@@ -190,13 +203,13 @@ export default function StreakCalendar() {
               onChange={(e) =>
                 setMinPerWeek(+e.target.value)
               }
-              className="w-14 bg-zinc-800 rounded px-2 py-1"
+              className="w-12 bg-zinc-800 rounded px-1 py-0.5"
             />
           </div>
         </div>
 
         {/* WEEKDAYS */}
-        <div className="grid grid-cols-7 text-xs mb-1 text-zinc-400">
+        <div className="grid grid-cols-7 text-[10px] mb-1 text-zinc-400">
           {["S", "M", "T", "W", "T", "F", "S"].map(
             (d) => (
               <div
@@ -221,7 +234,7 @@ export default function StreakCalendar() {
                 key={d}
                 title={d}
                 onClick={() => openDay(d)}
-                className={`h-8 rounded-md flex items-center justify-center text-[11px] font-semibold ${
+                className={`h-7 rounded-md flex items-center justify-center text-[10px] font-semibold ${
                   isCurrentMonth
                     ? color(days[d] || 0)
                     : "bg-zinc-900 text-zinc-500"
@@ -266,9 +279,11 @@ export default function StreakCalendar() {
                   {e.name}
                 </p>
 
-                <p className="text-xs text-zinc-400">
-                  {e.muscleGroup}
-                </p>
+                {e.muscleGroups.length > 0 && (
+                  <p className="text-xs text-zinc-400">
+                    {e.muscleGroups.join(", ")}
+                  </p>
+                )}
 
                 <div className="mt-2 text-sm">
                   {e.sets.map((s, idx) => (

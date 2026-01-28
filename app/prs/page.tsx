@@ -18,7 +18,7 @@ export default function PRsPage() {
         {prs.map((e) => (
           <div key={e._id} className="bg-zinc-900 rounded-xl p-4">
             <p className="font-semibold">{e.name}</p>
-            <p className="text-xs text-zinc-400">{e.muscleGroup}</p>
+            <p className="text-xs text-zinc-400">{e.muscleGroups?.join(", ")}</p>
             <p className="text-2xl mt-2 text-green-500">
               {e.pr || 0} kg
             </p>
